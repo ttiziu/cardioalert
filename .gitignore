@@ -1,0 +1,19 @@
+# Secretos: cada carpeta tiene su .env.example como plantilla
+.env
+.env.*
+!.env.example
+
+# Documentación de la tesis: el notebook tiene un token de ngrok expuesto
+docs/
+
+# Artefactos generados
+*.apk
+node_modules/
+dist/
+.DS_Store
+
+# ml-api
+.venv/
+__pycache__/
+ml-api/model/*.keras
+ml-api/model/*.tflite
