@@ -7,7 +7,7 @@ Recibe una ventana de 2500 muestras (250 Hz, 10 s, z-score) y devuelve la clasif
 Copia el archivo entrenado en Colab a `model/`:
 
 ```
-ml-api/model/mejor_modelo_cnn_estable.keras
+ml-api/model/cardioalert_cnn_bilstm.keras
 ```
 
 Se versiona en git (pesa < 1 MB), así Railway lo recibe con el código.

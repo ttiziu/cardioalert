@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 WINDOW_SIZE = 2500
 CLASSES = ["normal", "afib", "isquemia"]
 
-MODEL_PATH = os.getenv("MODEL_PATH", "model/mejor_modelo_cnn_estable.keras")
+MODEL_PATH = os.getenv("MODEL_PATH", "model/cardioalert_cnn_bilstm.keras")
 API_KEY = os.getenv("ML_API_KEY")
 
 model = None
