@@ -3,7 +3,7 @@ import { DEMO_MODE } from '../config';
 import { api } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import type { Label } from '../ml/types';
-import type { Alert, AlertStatus, NewAlert, Session } from './types';
+import type { Alert, AlertStatus, AppUser, NewAlert, NewUser, Session } from './types';
 
 /**
  * Único punto de acceso a datos de la app.
@@ -113,4 +113,16 @@ export function subscribeAlerts(onChange: () => void): () => void {
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+const NEEDS_BACKEND = 'La gestión de usuarios requiere Supabase configurado (no está disponible en modo demo).';
+
+export async function listUsers(): Promise<AppUser[]> {
+  if (DEMO_MODE) throw new Error(NEEDS_BACKEND);
+  return api.listUsers();
+}
+
+export async function createUser(user: NewUser): Promise<AppUser> {
+  if (DEMO_MODE) throw new Error(NEEDS_BACKEND);
+  return api.createUser(user);
 }

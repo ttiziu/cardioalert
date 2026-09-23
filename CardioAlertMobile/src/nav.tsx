@@ -19,7 +19,8 @@ export type Route =
   | { name: 'result' }
   | { name: 'xai' }
   | { name: 'confirm' }
-  | { name: 'hospital' };
+  | { name: 'hospital' }
+  | { name: 'admin' };
 
 type Nav = {
   route: Route;

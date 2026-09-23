@@ -26,3 +26,11 @@ export const alertSchema = z.object({
 export const alertStatusSchema = z.object({
   status: z.enum(['aceptada', 'derivada']),
 });
+
+/** El admin solo crea cuentas operativas: no puede crear otros administradores. */
+export const createUserSchema = z.object({
+  fullName: z.string().trim().min(3, 'Nombre muy corto').max(80),
+  email: z.string().trim().toLowerCase().email('Correo inválido'),
+  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(72),
+  role: z.enum(['paramedico', 'medico']),
+});

@@ -43,6 +43,8 @@ export default function LoginScreen() {
       nav.reset(
         role === 'medico'
           ? { name: 'hospital' }
+          : role === 'admin'
+          ? { name: 'admin' }
           : { name: 'tabs', tab: 'monitoreo' },
       );
     } catch (e) {

@@ -1,6 +1,7 @@
 import { StatusBar, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { NavProvider, useNav } from './src/nav';
+import AdminScreen from './src/screens/AdminScreen';
 import ConfirmAlertScreen from './src/screens/ConfirmAlertScreen';
 import ConnectScreen from './src/screens/ConnectScreen';
 import HospitalScreen from './src/screens/HospitalScreen';
@@ -71,6 +72,8 @@ function Route() {
       return <ConfirmAlertScreen />;
     case 'hospital':
       return <HospitalRoute />;
+    case 'admin':
+      return <AdminScreen />;
   }
 }
 

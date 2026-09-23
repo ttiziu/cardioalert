@@ -29,3 +29,15 @@ export type Alert = {
 };
 
 export type NewAlert = Omit<Alert, 'id' | 'createdAt' | 'status'>;
+
+export type StaffRole = 'paramedico' | 'medico';
+
+export type AppUser = {
+  id: string;
+  email: string;
+  fullName: string;
+  role: StaffRole | 'admin';
+  createdAt: string;
+};
+
+export type NewUser = { fullName: string; email: string; password: string; role: StaffRole };

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { alertSchema, alertStatusSchema, startSessionSchema } from './schemas.js';
+import { alertSchema, alertStatusSchema, createUserSchema, startSessionSchema } from './schemas.js';
 
 const validAlert = {
   sessionId: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
@@ -38,4 +38,20 @@ test('exige el formato anónimo del código de paciente', () => {
 test('solo permite aceptar o derivar', () => {
   assert.equal(alertStatusSchema.safeParse({ status: 'derivada' }).success, true);
   assert.equal(alertStatusSchema.safeParse({ status: 'pendiente' }).success, false);
+});
+
+const newUser = { fullName: 'Ana Torres', email: 'Ana@Hospital.pe ', password: 'segura123', role: 'medico' };
+
+test('acepta un usuario válido y normaliza el correo', () => {
+  const r = createUserSchema.safeParse(newUser);
+  assert.equal(r.success, true);
+  assert.equal(r.success && r.data.email, 'ana@hospital.pe');
+});
+
+test('no permite crear administradores desde la app', () => {
+  assert.equal(createUserSchema.safeParse({ ...newUser, role: 'admin' }).success, false);
+});
+
+test('exige contraseña de al menos 8 caracteres', () => {
+  assert.equal(createUserSchema.safeParse({ ...newUser, password: '1234567' }).success, false);
 });

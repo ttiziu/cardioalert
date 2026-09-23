@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '@env';
-import type { Alert, AlertStatus, NewAlert, Session } from '../data/types';
+import type { Alert, AlertStatus, AppUser, NewAlert, NewUser, Session } from '../data/types';
 import type { Label } from '../ml/types';
 import { supabase } from './supabase';
 
@@ -45,4 +45,7 @@ export const api = {
   listAlerts: () => request<Alert[]>('/alerts'),
   setAlertStatus: (id: string, status: Exclude<AlertStatus, 'pendiente'>) =>
     post<Alert>(`/alerts/${id}/status`, { status }),
+
+  listUsers: () => request<AppUser[]>('/users'),
+  createUser: (user: NewUser) => post<AppUser>('/users', user),
 };
