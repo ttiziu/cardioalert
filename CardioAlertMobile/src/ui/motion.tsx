@@ -70,7 +70,13 @@ export function FadeIn({
   );
 }
 
-/** Pressable que se hunde un poco al tocarlo: da respuesta táctil sin vibrar. */
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/**
+ * Pressable que se hunde un poco al tocarlo: da respuesta táctil sin vibrar.
+ * Es el propio Pressable el que se anima, así `style` (flex, width, márgenes)
+ * se aplica al elemento que ocupa el lugar en el layout.
+ */
 export function PressableScale({
   children,
   style,
@@ -92,8 +98,9 @@ export function PressableScale({
     }).start();
 
   return (
-    <Pressable
+    <AnimatedPressable
       {...props}
+      style={[style, { transform: [{ scale }] }]}
       onPressIn={e => {
         if (!reduced) to(scaleTo);
         props.onPressIn?.(e);
@@ -102,8 +109,8 @@ export function PressableScale({
         if (!reduced) to(1);
         props.onPressOut?.(e);
       }}>
-      <Animated.View style={[style, { transform: [{ scale }] }]}>{children}</Animated.View>
-    </Pressable>
+      {children}
+    </AnimatedPressable>
   );
 }
 
