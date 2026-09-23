@@ -12,8 +12,7 @@ node_modules/
 dist/
 .DS_Store
 
-# ml-api
+# ml-api (el .keras entrenado sí se versiona: pesa < 1 MB)
 .venv/
 __pycache__/
-ml-api/model/*.keras
 ml-api/model/*.tflite

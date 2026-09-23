@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { listSessions } from '../data/repo';
 import type { Session } from '../data/types';
 import type { Label } from '../ml/types';
 import { Badge, Card } from '../ui/components';
+import { FadeIn, PressableScale } from '../ui/motion';
 import { colors, labelColor, labelShort, mono } from '../ui/theme';
 
 const FILTERS: { value: Label | 'todas'; label: string }[] = [
@@ -15,7 +16,9 @@ const FILTERS: { value: Label | 'todas'; label: string }[] = [
 
 const duration = (s: Session) => {
   if (!s.endedAt) return 'en curso';
-  const secs = Math.round((+new Date(s.endedAt) - +new Date(s.startedAt)) / 1000);
+  const secs = Math.round(
+    (+new Date(s.endedAt) - +new Date(s.startedAt)) / 1000,
+  );
   return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
 };
 
@@ -31,7 +34,9 @@ export default function HistoryScreen() {
     try {
       setSessions(await listSessions());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo cargar el historial');
+      setError(
+        e instanceof Error ? e.message : 'No se pudo cargar el historial',
+      );
     } finally {
       setLoading(false);
     }
@@ -41,20 +46,29 @@ export default function HistoryScreen() {
     load();
   }, [load]);
 
-  const visible = filter === 'todas' ? sessions : sessions.filter(s => s.label === filter);
+  const visible =
+    filter === 'todas' ? sessions : sessions.filter(s => s.label === filter);
 
   return (
     <View style={styles.flex}>
       <View style={styles.filters}>
         {FILTERS.map(f => (
-          <Pressable
+          <PressableScale
             key={f.value}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: filter === f.value }}
             onPress={() => setFilter(f.value)}
-            style={[styles.filter, filter === f.value && styles.filterActive]}>
-            <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>
+            style={[styles.filter, filter === f.value && styles.filterActive]}
+          >
+            <Text
+              style={[
+                styles.filterText,
+                filter === f.value && styles.filterTextActive,
+              ]}
+            >
               {f.label}
             </Text>
-          </Pressable>
+          </PressableScale>
         ))}
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -63,26 +77,41 @@ export default function HistoryScreen() {
         data={visible}
         keyExtractor={s => s.id}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accent} />
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={load}
+            tintColor={colors.accent}
+          />
         }
         ListEmptyComponent={
-          loading ? undefined : <Text style={styles.empty}>No hay sesiones para este filtro.</Text>
+          loading ? undefined : (
+            <Text style={styles.empty}>No hay sesiones para este filtro.</Text>
+          )
         }
-        renderItem={({ item }) => (
-          <Card style={styles.row}>
-            <View style={styles.flex}>
-              <Text style={styles.patient}>Paciente #{item.patientCode}</Text>
-              <Text style={styles.meta}>
-                {new Date(item.startedAt).toLocaleString()} · {duration(item)}
-              </Text>
-            </View>
-            <View style={styles.right}>
-              <Badge label={labelShort[item.label]} color={labelColor[item.label]} />
-              {item.confidence > 0 ? (
-                <Text style={styles.meta}>Conf. {Math.round(item.confidence * 100)}%</Text>
-              ) : null}
-            </View>
-          </Card>
+        renderItem={({ item, index }) => (
+          <FadeIn key={`${filter}-${item.id}`} delay={Math.min(index, 8) * 45}>
+            <Card
+              style={[styles.row, { borderLeftColor: labelColor[item.label] }]}
+            >
+              <View style={styles.flex}>
+                <Text style={styles.patient}>Paciente #{item.patientCode}</Text>
+                <Text style={styles.meta}>
+                  {new Date(item.startedAt).toLocaleString()} · {duration(item)}
+                </Text>
+              </View>
+              <View style={styles.right}>
+                <Badge
+                  label={labelShort[item.label]}
+                  color={labelColor[item.label]}
+                />
+                {item.confidence > 0 ? (
+                  <Text style={styles.meta}>
+                    Conf. {Math.round(item.confidence * 100)}%
+                  </Text>
+                ) : null}
+              </View>
+            </Card>
+          </FadeIn>
         )}
       />
     </View>
@@ -91,7 +120,12 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  filters: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
+  filters: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
   filter: {
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -104,7 +138,7 @@ const styles = StyleSheet.create({
   filterText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
   filterTextActive: { color: colors.accentText },
   list: { padding: 16, gap: 10, paddingTop: 8 },
-  row: { flexDirection: 'row', alignItems: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', borderLeftWidth: 3 },
   patient: { color: colors.text, fontWeight: '700', fontSize: 15 },
   meta: { color: colors.muted, fontSize: 11, fontFamily: mono, marginTop: 4 },
   right: { alignItems: 'flex-end' },

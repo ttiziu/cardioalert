@@ -1,4 +1,4 @@
 __pycache__/
 .venv/
-model/*.keras
+# El modelo entrenado sí se versiona (pesa < 1 MB) para que Railway lo tenga.
 model/*.tflite

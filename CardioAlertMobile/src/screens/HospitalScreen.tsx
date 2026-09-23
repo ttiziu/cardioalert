@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { listAlerts, setAlertStatus, subscribeAlerts } from '../data/repo';
 import type { Alert } from '../data/types';
 import { useApp } from '../state/AppState';
 import { Badge, Button, Card, EcgChart, Metric, Row } from '../ui/components';
+import { FadeIn, Pulse } from '../ui/motion';
 import { colors, labelColor, labelShort, mono } from '../ui/theme';
 
 const STATUS_COLOR = {
@@ -18,7 +25,11 @@ const ago = (iso: string) => {
 };
 
 /** Monitor del médico receptor. También sirve de bandeja de alertas enviadas al paramédico. */
-export default function HospitalScreen({ canRespond }: { canRespond: boolean }) {
+export default function HospitalScreen({
+  canRespond,
+}: {
+  canRespond: boolean;
+}) {
   const { user } = useApp();
   const { width } = useWindowDimensions();
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -31,7 +42,9 @@ export default function HospitalScreen({ canRespond }: { canRespond: boolean }) 
         setAlerts(a);
         setError(null);
       })
-      .catch(e => setError(e instanceof Error ? e.message : 'Error al cargar alertas'));
+      .catch(e =>
+        setError(e instanceof Error ? e.message : 'Error al cargar alertas'),
+      );
   }, []);
 
   useEffect(() => {
@@ -57,13 +70,15 @@ export default function HospitalScreen({ canRespond }: { canRespond: boolean }) 
       ListHeaderComponent={
         <View style={styles.header}>
           {canRespond ? (
-            <Text style={styles.doctor}>
-              {user?.name} · Receptor
-            </Text>
+            <Text style={styles.doctor}>{user?.name} · Receptor</Text>
           ) : null}
           <View style={styles.metrics}>
             <Metric label="Alertas hoy" value={String(today.length)} />
-            <Metric label="Pendientes" value={String(pending)} color={colors.warning} />
+            <Metric
+              label="Pendientes"
+              value={String(pending)}
+              color={colors.warning}
+            />
             <Metric
               label="Atendidas"
               value={String(today.filter(a => a.status !== 'pendiente').length)}
@@ -74,70 +89,103 @@ export default function HospitalScreen({ canRespond }: { canRespond: boolean }) 
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
       }
-      ListEmptyComponent={<Text style={styles.empty}>No hay alertas por ahora.</Text>}
-      renderItem={({ item }) => {
+      ListEmptyComponent={
+        <Text style={styles.empty}>No hay alertas por ahora.</Text>
+      }
+      renderItem={({ item, index }) => {
         const color = labelColor[item.label];
         const open = expanded === item.id;
+        const pending = item.status === 'pendiente';
         return (
-          <Pressable onPress={() => setExpanded(open ? null : item.id)}>
-            <Card borderColor={item.status === 'pendiente' ? color : undefined} style={styles.alert}>
-              <View style={styles.alertTop}>
-                <View style={styles.flex}>
-                  <View style={styles.titleRow}>
-                    <Text style={styles.patient}>{item.patientCode}</Text>
-                    <Badge label={labelShort[item.label]} color={color} />
+          <FadeIn delay={Math.min(index, 8) * 50}>
+            <Pulse
+              active={pending && canRespond}
+              periodMs={1800}
+              maxScale={1.01}
+            >
+              <Card
+                onPress={() => setExpanded(open ? null : item.id)}
+                borderColor={pending ? color : undefined}
+                style={[
+                  styles.alert,
+                  pending && { backgroundColor: `${color}0D` },
+                ]}
+              >
+                <View style={styles.alertTop}>
+                  <View style={styles.flex}>
+                    <View style={styles.titleRow}>
+                      <Text style={styles.patient}>{item.patientCode}</Text>
+                      <Badge label={labelShort[item.label]} color={color} />
+                    </View>
+                    <Text style={styles.meta}>
+                      {new Date(item.createdAt).toLocaleTimeString()} ·{' '}
+                      {ago(item.createdAt)}
+                    </Text>
                   </View>
-                  <Text style={styles.meta}>
-                    {new Date(item.createdAt).toLocaleTimeString()} · {ago(item.createdAt)}
-                  </Text>
-                </View>
-                <Text style={[styles.status, { color: STATUS_COLOR[item.status] }]}>
-                  {item.status.toUpperCase()}
-                </Text>
-              </View>
-
-              {open ? (
-                <View style={styles.detail}>
-                  {item.ecgSnapshot.length ? (
-                    <View style={styles.chart}>
-                      <EcgChart
-                        samples={item.ecgSnapshot}
-                        width={width - 64}
-                        height={90}
-                        color={color}
-                      />
-                    </View>
-                  ) : null}
-                  <Row label="Confianza" value={`${Math.round(item.confidence * 100)}%`} />
-                  <Row label="FC" value={item.hr !== null ? `${item.hr} BPM` : '--'} />
-                  <Row label="R-R" value={item.rrMs !== null ? `${item.rrMs} ms` : '--'} />
-                  <Row
-                    label="Ubicación"
-                    value={
-                      item.latitude !== null && item.longitude !== null
-                        ? `${item.latitude.toFixed(4)}, ${item.longitude.toFixed(4)}`
-                        : 'Sin GPS'
-                    }
+                  <Badge
+                    label={item.status.toUpperCase()}
+                    color={STATUS_COLOR[item.status]}
+                    live={pending}
                   />
-                  {canRespond && item.status === 'pendiente' ? (
-                    <View style={styles.actions}>
-                      <Button
-                        label="Aceptar"
-                        onPress={() => respond(item.id, 'aceptada')}
-                        style={styles.flex}
-                      />
-                      <Button
-                        label="Derivar"
-                        variant="ghost"
-                        onPress={() => respond(item.id, 'derivada')}
-                        style={styles.flex}
-                      />
-                    </View>
-                  ) : null}
                 </View>
-              ) : null}
-            </Card>
-          </Pressable>
+
+                {open ? (
+                  <FadeIn distance={6} style={styles.detail}>
+                    {item.ecgSnapshot.length ? (
+                      <View style={styles.chart}>
+                        <EcgChart
+                          samples={item.ecgSnapshot}
+                          width={width - 64}
+                          height={90}
+                          color={color}
+                        />
+                      </View>
+                    ) : null}
+                    <Row
+                      label="Confianza"
+                      value={`${Math.round(item.confidence * 100)}%`}
+                    />
+                    <Row
+                      label="FC"
+                      value={item.hr !== null ? `${item.hr} BPM` : '--'}
+                    />
+                    <Row
+                      label="R-R"
+                      value={item.rrMs !== null ? `${item.rrMs} ms` : '--'}
+                    />
+                    <Row
+                      label="Ubicación"
+                      value={
+                        item.latitude !== null && item.longitude !== null
+                          ? `${item.latitude.toFixed(
+                              4,
+                            )}, ${item.longitude.toFixed(4)}`
+                          : 'Sin GPS'
+                      }
+                    />
+                    {canRespond && item.status === 'pendiente' ? (
+                      <View style={styles.actions}>
+                        <Button
+                          label="Aceptar"
+                          onPress={() => respond(item.id, 'aceptada')}
+                          style={styles.flex}
+                        />
+                        <Button
+                          label="Derivar"
+                          variant="ghost"
+                          onPress={() => respond(item.id, 'derivada')}
+                          style={styles.flex}
+                        />
+                      </View>
+                    ) : null}
+                  </FadeIn>
+                ) : null}
+                <Text style={styles.expandHint}>
+                  {open ? '▴ Ocultar detalle' : '▾ Ver detalle'}
+                </Text>
+              </Card>
+            </Pulse>
+          </FadeIn>
         );
       }}
     />
@@ -150,7 +198,12 @@ const styles = StyleSheet.create({
   header: { gap: 12, marginBottom: 2 },
   doctor: { color: colors.muted, fontSize: 12 },
   metrics: { flexDirection: 'row', gap: 10 },
-  section: { color: colors.muted, fontSize: 11, letterSpacing: 1, fontWeight: '600' },
+  section: {
+    color: colors.muted,
+    fontSize: 11,
+    letterSpacing: 1,
+    fontWeight: '600',
+  },
   error: { color: colors.danger, fontSize: 12 },
   empty: { color: colors.muted, textAlign: 'center', marginTop: 32 },
   alert: { gap: 10 },
@@ -158,8 +211,13 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   patient: { color: colors.text, fontWeight: '700', fontSize: 15 },
   meta: { color: colors.muted, fontSize: 11, fontFamily: mono, marginTop: 4 },
-  status: { fontSize: 10, fontWeight: '700', fontFamily: mono },
+  expandHint: { color: colors.muted, fontSize: 11, textAlign: 'center' },
   detail: { gap: 4 },
-  chart: { backgroundColor: '#000', borderRadius: 8, overflow: 'hidden', marginBottom: 4 },
+  chart: {
+    backgroundColor: '#000',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
   actions: { flexDirection: 'row', gap: 10, marginTop: 8 },
 });

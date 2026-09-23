@@ -11,6 +11,7 @@ import TabsScreen from './src/screens/TabsScreen';
 import XaiScreen from './src/screens/XaiScreen';
 import { AppProvider, useApp } from './src/state/AppState';
 import { Button, Header, Screen } from './src/ui/components';
+import { FadeIn } from './src/ui/motion';
 import { colors } from './src/ui/theme';
 
 function HospitalRoute() {
@@ -41,6 +42,17 @@ function HospitalRoute() {
 }
 
 function Router() {
+  const { route } = useNav();
+  // Cambiar la key remonta el FadeIn: cada pantalla nueva entra con un fundido corto.
+  // Las pestañas comparten key para que la barra no se remonte y su indicador se deslice.
+  return (
+    <FadeIn key={route.name} distance={8} style={styles.safe}>
+      <Route />
+    </FadeIn>
+  );
+}
+
+function Route() {
   const { route } = useNav();
   switch (route.name) {
     case 'login':

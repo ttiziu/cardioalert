@@ -10,15 +10,13 @@ Copia el archivo entrenado en Colab a `model/`:
 ml-api/model/mejor_modelo_cnn_estable.keras
 ```
 
-Está ignorado por git (pesa varios MB). Para Railway hay dos opciones:
-súbelo al repo quitándolo del `.gitignore`, o publícalo en Supabase Storage y
-descárgalo al arrancar.
+Se versiona en git (pesa < 1 MB), así Railway lo recibe con el código.
 
 ## Local
 
 ```bash
 cd ml-api
-python3 -m venv .venv && source .venv/bin/activate
+python3.12 -m venv .venv && source .venv/bin/activate  # TensorFlow requiere Python ≤ 3.12
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```

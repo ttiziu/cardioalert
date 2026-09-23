@@ -1,4 +1,6 @@
-fastapi==0.118.0
-uvicorn[standard]==0.37.0
-numpy==2.1.3
-tensorflow-cpu==2.20.0
+# Versiones probadas localmente con Python 3.12 (ver .python-version).
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+numpy==2.5.3
+# El paquete de Linux funciona en CPU; los drivers CUDA solo se instalan con [and-cuda].
+tensorflow==2.20.0

@@ -1,12 +1,19 @@
 import type { Label, PredictFn } from './types';
 import { HAS_REMOTE_MODEL, remotePredictor } from './remote';
 
-export type ModelSource = 'demo' | 'servidor';
+/**
+ * - `modelo`: el CNN entrenado, servido por ml-api. Para pacientes reales.
+ * - `simulacion`: el escenario que elige el usuario. Para demostrar los flujos de
+ *   AFib e isquemia sin un paciente que las presente.
+ */
+export type ModelSource = 'modelo' | 'simulacion';
+
+export const MODEL_AVAILABLE = HAS_REMOTE_MODEL;
+export const DEFAULT_SOURCE: ModelSource = MODEL_AVAILABLE ? 'modelo' : 'simulacion';
 
 /**
- * Clasificador de demostración: devuelve la clase del escenario simulado y hace
- * que la confianza dependa de los picos de la señal, para que el XAI se vea
- * coherente. Se reemplaza por el modelo TFLite en `createPredictor`.
+ * Clasificador de simulación: devuelve la clase del escenario elegido y hace que
+ * la confianza dependa de los picos de la señal, para que el XAI sea coherente.
  */
 export function demoPredictor(scenario: () => Label): PredictFn {
   const base: Record<Label, number[]> = {
@@ -27,13 +34,10 @@ export function demoPredictor(scenario: () => Label): PredictFn {
   };
 }
 
-export const MODEL_SOURCE: ModelSource = HAS_REMOTE_MODEL ? 'servidor' : 'demo';
-
-/**
- * ponytail: hoy la inferencia vive en la API (opción A). Para inferencia
- * offline: `npm i react-native-fast-tflite`, poner el .tflite en assets y
- * devolver aquí un predictor local con el mismo contrato.
- */
-export function createPredictor(scenario: () => Label): PredictFn {
-  return HAS_REMOTE_MODEL ? remotePredictor() : demoPredictor(scenario);
+/** Predictor que consulta la fuente activa en cada ventana: se puede cambiar en vivo. */
+export function createPredictor(source: () => ModelSource, scenario: () => Label): PredictFn {
+  const simulated = demoPredictor(scenario);
+  const remote = MODEL_AVAILABLE ? remotePredictor() : null;
+  return window =>
+    source() === 'modelo' && remote ? remote(window) : simulated(window);
 }

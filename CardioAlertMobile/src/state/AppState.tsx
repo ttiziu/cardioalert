@@ -13,10 +13,10 @@ import { ALERT_THRESHOLD, DEMO_MODE } from '../config';
 import * as repo from '../data/repo';
 import type { Session } from '../data/types';
 import { EcgSimulator, SIM_RATE } from '../demo/ecgSimulator';
-import { createPredictor, MODEL_SOURCE, type ModelSource } from '../ml/classifier';
+import { createPredictor, DEFAULT_SOURCE, type ModelSource } from '../ml/classifier';
 import { toPrediction, type Label, type Prediction } from '../ml/types';
 import { perturbationImportance } from '../ml/xai';
-import { HAS_REMOTE_MODEL, remoteExplain } from '../ml/remote';
+import { remoteExplain } from '../ml/remote';
 import {
   polar,
   requestBlePermissions,
@@ -63,6 +63,7 @@ type Ctx = {
   lastWindow: number[] | null;
   alertActive: boolean;
   modelSource: ModelSource;
+  setModelSource: (s: ModelSource) => void;
   modelError: string | null;
   heatmap: number[] | null;
   xaiRunning: boolean;
@@ -126,7 +127,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const sessionRef = useRef<Session | null>(null);
   const lastLabelRef = useRef<Label | null>(null);
   const alertRef = useRef(false);
-  const predictor = useMemo(() => createPredictor(() => scenarioRef.current), []);
+  const [modelSource, setModelSourceState] = useState<ModelSource>(DEFAULT_SOURCE);
+  const modelSourceRef = useRef<ModelSource>(DEFAULT_SOURCE);
+  const predictor = useMemo(
+    () => createPredictor(() => modelSourceRef.current, () => scenarioRef.current),
+    [],
+  );
 
   const simulated = connection !== 'connected';
 
@@ -305,12 +311,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setStartedAt(null);
   }, []);
 
+  const setModelSource = useCallback((source: ModelSource) => {
+    modelSourceRef.current = source;
+    setModelSourceState(source);
+    // El diagnóstico previo era de la otra fuente: se descarta y se espera el próximo.
+    lastLabelRef.current = null;
+    alertRef.current = false;
+    setPrediction(null);
+    setHeatmap(null);
+    setAlertActive(false);
+  }, []);
+
   const runXai = useCallback(async () => {
     if (!lastWindow || !prediction) return;
     setXaiRunning(true);
     try {
       setHeatmap(
-        HAS_REMOTE_MODEL
+        modelSourceRef.current === 'modelo'
           ? (await remoteExplain(lastWindow)).importance
           : await perturbationImportance(lastWindow, predictor, prediction.label),
       );
@@ -355,7 +372,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     prediction,
     lastWindow,
     alertActive,
-    modelSource: MODEL_SOURCE,
+    modelSource,
+    setModelSource,
     modelError,
     heatmap,
     xaiRunning,

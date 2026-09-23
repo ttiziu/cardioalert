@@ -5,7 +5,16 @@ import { sendAlert } from '../data/repo';
 import { getCurrentCoords, type Coords } from '../lib/location';
 import { useNav } from '../nav';
 import { useApp } from '../state/AppState';
-import { Badge, Button, Card, Header, Row, Screen, SectionLabel } from '../ui/components';
+import {
+  Badge,
+  Button,
+  Card,
+  Header,
+  Row,
+  Screen,
+  SectionLabel,
+} from '../ui/components';
+import { FadeIn, Pulse, Ripple } from '../ui/motion';
 import { colors, labelColor, labelName, labelShort, mono } from '../ui/theme';
 
 export default function ConfirmAlertScreen() {
@@ -49,7 +58,9 @@ export default function ConfirmAlertScreen() {
         rrMs: app.rrMs,
         latitude: coords?.latitude ?? null,
         longitude: coords?.longitude ?? null,
-        ecgSnapshot: (app.lastWindow ?? []).map(v => Math.round(v * 1000) / 1000),
+        ecgSnapshot: (app.lastWindow ?? []).map(
+          v => Math.round(v * 1000) / 1000,
+        ),
       });
       setSent(true);
     } catch (e) {
@@ -63,13 +74,28 @@ export default function ConfirmAlertScreen() {
     return (
       <Screen>
         <View style={styles.sent}>
-          <Text style={styles.sentIcon}>✓</Text>
-          <Text style={styles.sentTitle}>Alerta enviada</Text>
-          <Text style={styles.sentText}>
-            {RECEIVING_HOSPITAL.name} recibió la alerta de {labelName[label].toLowerCase()} del
-            paciente {app.session.patientCode}.
-          </Text>
-          <Button label="Volver al monitoreo" onPress={() => nav.reset({ name: 'monitor' })} />
+          <View style={styles.sentBadgeWrap}>
+            <Ripple size={96} color={colors.accent} durationMs={2200} />
+            <FadeIn distance={24}>
+              <Pulse periodMs={2200} maxScale={1.04}>
+                <View style={styles.sentBadge}>
+                  <Text style={styles.sentIcon}>✓</Text>
+                </View>
+              </Pulse>
+            </FadeIn>
+          </View>
+          <FadeIn delay={150}>
+            <Text style={styles.sentTitle}>Alerta enviada</Text>
+            <Text style={styles.sentText}>
+              {RECEIVING_HOSPITAL.name} recibió la alerta de{' '}
+              {labelName[label].toLowerCase()} del paciente{' '}
+              {app.session.patientCode}.
+            </Text>
+            <Button
+              label="Volver al monitoreo"
+              onPress={() => nav.reset({ name: 'monitor' })}
+            />
+          </FadeIn>
         </View>
       </Screen>
     );
@@ -79,13 +105,24 @@ export default function ConfirmAlertScreen() {
     <Screen>
       <Header title="Confirmar Alerta" onBack={nav.back} />
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.center}>
-          <Badge label={`ALERTA CRÍTICA — ${labelShort[label]}`} color={color} />
-        </View>
+        <FadeIn style={styles.center}>
+          <Badge
+            label={`ALERTA CRÍTICA — ${labelShort[label]}`}
+            color={color}
+            live
+          />
+        </FadeIn>
 
         <Card borderColor={color}>
-          <Row label="Paciente" value={`${app.session.patientCode} (Anónimo)`} />
-          <Row label="Clasificación" value={labelName[label]} valueColor={color} />
+          <Row
+            label="Paciente"
+            value={`${app.session.patientCode} (Anónimo)`}
+          />
+          <Row
+            label="Clasificación"
+            value={labelName[label]}
+            valueColor={color}
+          />
           <Row label="Confianza" value={`${Math.round(p.confidence * 100)}%`} />
           <Row label="Fecha y hora" value={timestamp.toLocaleString()} />
         </Card>
@@ -95,7 +132,12 @@ export default function ConfirmAlertScreen() {
           <Text style={styles.hospital}>{RECEIVING_HOSPITAL.name}</Text>
           <Text style={styles.muted}>{RECEIVING_HOSPITAL.unit}</Text>
           <View style={styles.chips}>
-            {['Segmento ECG', 'Ubicación GPS', 'Datos vitales', 'Clasificación IA'].map(c => (
+            {[
+              'Segmento ECG',
+              'Ubicación GPS',
+              'Datos vitales',
+              'Clasificación IA',
+            ].map(c => (
               <Badge key={c} label={c} color={colors.muted} />
             ))}
           </View>
@@ -103,14 +145,17 @@ export default function ConfirmAlertScreen() {
             {locating
               ? 'Obteniendo ubicación…'
               : coords
-                ? `📍 ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`
-                : 'Ubicación no disponible (se enviará sin GPS)'}
+              ? `📍 ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(
+                  4,
+                )}`
+              : 'Ubicación no disponible (se enviará sin GPS)'}
           </Text>
         </Card>
 
         <Card>
           <Text style={styles.notice}>
-            Esta alerta notificará inmediatamente al equipo de urgencias del hospital receptor.
+            Esta alerta notificará inmediatamente al equipo de urgencias del
+            hospital receptor.
           </Text>
         </Card>
 
@@ -140,7 +185,32 @@ const styles = StyleSheet.create({
   notice: { color: colors.muted, fontSize: 12, textAlign: 'center' },
   error: { color: colors.danger, fontSize: 12, textAlign: 'center' },
   sent: { flex: 1, justifyContent: 'center', padding: 24, gap: 14 },
-  sentIcon: { color: colors.accent, fontSize: 56, textAlign: 'center' },
-  sentTitle: { color: colors.text, fontSize: 22, fontWeight: '800', textAlign: 'center' },
-  sentText: { color: colors.muted, fontSize: 14, textAlign: 'center', marginBottom: 12 },
+  sentBadgeWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 130,
+  },
+  sentBadge: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#10D6A31F',
+    borderWidth: 2,
+    borderColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sentIcon: { color: colors.accent, fontSize: 48, fontWeight: '800' },
+  sentTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  sentText: {
+    color: colors.muted,
+    fontSize: 14,
+    textAlign: 'center',
+    marginVertical: 12,
+  },
 });

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import type { UserRole } from '../lib/supabase';
 import { useNav } from '../nav';
 import { useApp } from '../state/AppState';
 import { Button, DemoTag, HeartLogo, Screen } from '../ui/components';
+import { FadeIn, PressableScale } from '../ui/motion';
 import { colors } from '../ui/theme';
 
 const ROLES: { value: UserRole; label: string }[] = [
@@ -41,7 +41,9 @@ export default function LoginScreen() {
     try {
       await login(email.trim().toLowerCase(), password, role);
       nav.reset(
-        role === 'medico' ? { name: 'hospital' } : { name: 'tabs', tab: 'monitoreo' },
+        role === 'medico'
+          ? { name: 'hospital' }
+          : { name: 'tabs', tab: 'monitoreo' },
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo iniciar sesión');
@@ -54,62 +56,82 @@ export default function LoginScreen() {
     <Screen>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.brand}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <FadeIn style={styles.brand} distance={20}>
             <HeartLogo />
             <Text style={styles.name}>CardioAlert</Text>
             <Text style={styles.tagline}>Sistema de Soporte Clínico</Text>
             {DEMO_MODE ? <DemoTag /> : null}
-          </View>
+          </FadeIn>
 
-          <Text style={styles.label}>CORREO ELECTRÓNICO</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="carlos.ramos@samu.gob.pe"
-            placeholderTextColor={colors.muted}
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-          />
+          <FadeIn delay={120}>
+            <Text style={styles.label}>CORREO ELECTRÓNICO</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="carlos.ramos@samu.gob.pe"
+              placeholderTextColor={colors.muted}
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+            />
 
-          <Text style={styles.label}>CONTRASEÑA</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            placeholderTextColor={colors.muted}
-            secureTextEntry
-            autoComplete="password"
-          />
+            <Text style={styles.label}>CONTRASEÑA</Text>
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              placeholderTextColor={colors.muted}
+              secureTextEntry
+              autoComplete="password"
+            />
+          </FadeIn>
 
-          <Text style={styles.label}>ROL DE USUARIO</Text>
-          <View style={styles.roles}>
-            {ROLES.map(r => (
-              <Pressable
-                key={r.value}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: role === r.value }}
-                onPress={() => setRole(r.value)}
-                style={[styles.role, role === r.value && styles.roleActive]}>
-                <Text style={[styles.roleText, role === r.value && styles.roleTextActive]}>
-                  {r.label}
+          <FadeIn delay={220}>
+            <Text style={styles.label}>ROL DE USUARIO</Text>
+            <View style={styles.roles}>
+              {ROLES.map(r => (
+                <PressableScale
+                  key={r.value}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: role === r.value }}
+                  onPress={() => setRole(r.value)}
+                  style={[styles.role, role === r.value && styles.roleActive]}
+                >
+                  <Text
+                    style={[
+                      styles.roleText,
+                      role === r.value && styles.roleTextActive,
+                    ]}
+                  >
+                    {r.label}
+                  </Text>
+                </PressableScale>
+              ))}
+            </View>
+
+            {error ? (
+              <FadeIn key={error} distance={4}>
+                <Text style={styles.error} accessibilityLiveRegion="polite">
+                  {error}
                 </Text>
-              </Pressable>
-            ))}
-          </View>
+              </FadeIn>
+            ) : null}
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          <Button
-            label={loading ? 'Ingresando…' : 'Iniciar Sesión'}
-            onPress={submit}
-            disabled={loading}
-            style={styles.submit}
-          />
+            <Button
+              label={loading ? 'Ingresando…' : 'Iniciar Sesión'}
+              onPress={submit}
+              disabled={loading}
+              style={styles.submit}
+            />
+          </FadeIn>
 
           {DEMO_MODE ? (
             <Text style={styles.hint}>
@@ -161,5 +183,10 @@ const styles = StyleSheet.create({
   roleTextActive: { color: colors.accentText },
   error: { color: colors.danger, marginTop: 16, fontSize: 13 },
   submit: { marginTop: 28 },
-  hint: { color: colors.muted, textAlign: 'center', marginTop: 16, fontSize: 12 },
+  hint: {
+    color: colors.muted,
+    textAlign: 'center',
+    marginTop: 16,
+    fontSize: 12,
+  },
 });

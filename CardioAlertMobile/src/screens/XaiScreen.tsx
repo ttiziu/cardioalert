@@ -1,9 +1,25 @@
 import { useEffect } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { TARGET_SAMPLE_RATE } from '../signal/preprocess';
 import { useNav } from '../nav';
 import { useApp } from '../state/AppState';
-import { Button, Card, DemoTag, EcgChart, Header, Screen, SectionLabel } from '../ui/components';
+import {
+  Button,
+  Card,
+  ConfidenceBar,
+  SourceTag,
+  EcgChart,
+  Header,
+  Screen,
+  SectionLabel,
+} from '../ui/components';
+import { FadeIn, Pulse } from '../ui/motion';
 import { colors, labelColor, labelName, mono } from '../ui/theme';
 
 const SEGMENT_SECONDS = 0.05;
@@ -44,32 +60,43 @@ export default function XaiScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.chart}>
           <View style={styles.chartHeader}>
-            <Text style={styles.chartMeta}>Ventana analizada · 10 s · {TARGET_SAMPLE_RATE} Hz</Text>
-            {app.modelSource === 'demo' ? <DemoTag /> : null}
+            <Text style={styles.chartMeta}>
+              Ventana analizada · 10 s · {TARGET_SAMPLE_RATE} Hz
+            </Text>
+            <SourceTag source={app.modelSource} />
           </View>
           {app.lastWindow ? (
-            <EcgChart
-              samples={app.lastWindow}
-              width={width - 32}
-              height={170}
-              heat={heatmap ?? undefined}
-            />
+            // Al llegar el mapa, la key cambia y el gráfico reaparece ya coloreado
+            <FadeIn key={heatmap ? 'heat' : 'raw'} distance={0}>
+              <EcgChart
+                samples={app.lastWindow}
+                width={width - 32}
+                height={170}
+                heat={heatmap ?? undefined}
+              />
+            </FadeIn>
           ) : (
             <Text style={styles.muted}>Sin ventana para explicar.</Text>
           )}
         </View>
 
         {xaiRunning ? (
-          <View style={styles.loading}>
-            <ActivityIndicator color={colors.accent} />
-            <Text style={styles.muted}>Perturbando tramos de 50 ms y midiendo la confianza…</Text>
-          </View>
+          <FadeIn style={styles.loading}>
+            <Pulse periodMs={900} minOpacity={0.3}>
+              <View style={styles.loadingDot} />
+            </Pulse>
+            <Text style={styles.muted}>
+              Perturbando tramos de 50 ms y midiendo la confianza…
+            </Text>
+          </FadeIn>
         ) : null}
 
         <SectionLabel>Zonas de activación</SectionLabel>
         <Card style={styles.legend}>
           <View style={styles.legendRow}>
-            <View style={[styles.swatch, { backgroundColor: colors.warning }]} />
+            <View
+              style={[styles.swatch, { backgroundColor: colors.warning }]}
+            />
             <Text style={styles.legendText}>Media · {mid} tramos</Text>
           </View>
           <View style={styles.legendRow}>
@@ -81,24 +108,24 @@ export default function XaiScreen() {
         <SectionLabel>Tramos más influyentes</SectionLabel>
         <Card>
           {regions.length ? (
-            regions.map(r => (
-              <View key={r.start} style={styles.region}>
+            regions.map((r, i) => (
+              <FadeIn key={r.start} delay={i * 90} style={styles.region}>
                 <Text style={styles.regionTime}>
-                  {r.start.toFixed(2)}–{(r.start + SEGMENT_SECONDS).toFixed(2)} s
+                  {r.start.toFixed(2)}–{(r.start + SEGMENT_SECONDS).toFixed(2)}{' '}
+                  s
                 </Text>
                 <View style={styles.regionBar}>
-                  <View
-                    style={[
-                      styles.regionFill,
-                      { width: `${Math.round(r.v * 100)}%`, backgroundColor: color },
-                    ]}
-                  />
+                  <ConfidenceBar value={r.v} color={color} />
                 </View>
-                <Text style={[styles.regionPct, { color }]}>{Math.round(r.v * 100)}%</Text>
-              </View>
+                <Text style={[styles.regionPct, { color }]}>
+                  {Math.round(r.v * 100)}%
+                </Text>
+              </FadeIn>
             ))
           ) : (
-            <Text style={styles.muted}>{xaiRunning ? 'Calculando…' : 'Sin datos.'}</Text>
+            <Text style={styles.muted}>
+              {xaiRunning ? 'Calculando…' : 'Sin datos.'}
+            </Text>
           )}
         </Card>
 
@@ -106,15 +133,23 @@ export default function XaiScreen() {
           <Card>
             <Text style={styles.explain}>
               El modelo clasificó la ventana como{' '}
-              <Text style={{ color, fontWeight: '700' }}>{labelName[p.label].toLowerCase()}</Text>
-              . Las zonas marcadas en rojo son las que, al ocultarlas, más reducen la confianza de
-              esa clasificación: son las que más pesaron en la decisión.
+              <Text style={{ color, fontWeight: '700' }}>
+                {labelName[p.label].toLowerCase()}
+              </Text>
+              . Las zonas marcadas en rojo son las que, al ocultarlas, más
+              reducen la confianza de esa clasificación: son las que más pesaron
+              en la decisión.
             </Text>
           </Card>
         ) : null}
 
         <View style={styles.actions}>
-          <Button label="Cerrar" variant="ghost" onPress={nav.back} style={styles.flex} />
+          <Button
+            label="Cerrar"
+            variant="ghost"
+            onPress={nav.back}
+            style={styles.flex}
+          />
           <Button
             label="Enviar Alerta"
             variant="danger"
@@ -145,10 +180,20 @@ const styles = StyleSheet.create({
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   swatch: { width: 14, height: 14, borderRadius: 3 },
   legendText: { color: colors.text, fontSize: 12 },
-  region: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  region: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 6,
+  },
   regionTime: { color: colors.text, fontSize: 12, fontFamily: mono, width: 96 },
-  regionBar: { flex: 1, height: 6, borderRadius: 3, backgroundColor: colors.border },
-  regionFill: { height: 6, borderRadius: 3 },
+  regionBar: { flex: 1 },
+  loadingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.accent,
+  },
   regionPct: { fontSize: 12, fontFamily: mono, width: 40, textAlign: 'right' },
   explain: { color: colors.text, fontSize: 13, lineHeight: 19 },
   actions: { flexDirection: 'row', gap: 10 },

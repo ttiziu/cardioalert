@@ -1,13 +1,14 @@
-import type { ReactNode } from 'react';
+import { memo, useMemo, type ReactNode } from 'react';
 import {
-  Pressable,
+  Animated,
   StyleSheet,
   Text,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import Svg, { Path, Polyline, Rect } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Polyline, Rect } from 'react-native-svg';
+import { PressableScale, Pulse, useAnimatedValue } from './motion';
 import { colors, mono } from './theme';
 
 export function Screen({ children }: { children: ReactNode }) {
@@ -28,9 +29,16 @@ export function Header({
   return (
     <View style={styles.header}>
       {onBack ? (
-        <Pressable onPress={onBack} style={styles.back} hitSlop={12}>
+        <PressableScale
+          onPress={onBack}
+          style={styles.back}
+          hitSlop={12}
+          scaleTo={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Text style={styles.backText}>‹</Text>
-        </Pressable>
+        </PressableScale>
       ) : null}
       <View style={styles.flex}>
         <Text style={styles.title}>{title}</Text>
@@ -45,15 +53,24 @@ export function Card({
   children,
   style,
   borderColor,
+  onPress,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   borderColor?: string;
+  onPress?: () => void;
 }) {
+  const cardStyle = [styles.card, borderColor ? { borderColor } : null, style];
+  if (!onPress) return <View style={cardStyle}>{children}</View>;
   return (
-    <View style={[styles.card, borderColor ? { borderColor } : null, style]}>
+    <PressableScale
+      onPress={onPress}
+      style={cardStyle}
+      scaleTo={0.985}
+      accessibilityRole="button"
+    >
       {children}
-    </View>
+    </PressableScale>
   );
 }
 
@@ -74,37 +91,58 @@ export function Button({
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  const bg =
-    variant === 'primary'
-      ? colors.accent
-      : variant === 'danger'
-        ? colors.danger
-        : colors.card;
-  const fg =
-    variant === 'primary'
-      ? colors.accentText
-      : variant === 'danger'
-        ? '#FFFFFF'
-        : colors.text;
+  const palette = {
+    primary: { bg: colors.accent, fg: colors.accentText },
+    danger: { bg: colors.danger, fg: '#FFFFFF' },
+    ghost: { bg: colors.card, fg: colors.text },
+  }[variant];
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
+      style={[
         styles.button,
-        { backgroundColor: bg, opacity: disabled ? 0.4 : pressed ? 0.8 : 1 },
+        { backgroundColor: palette.bg, opacity: disabled ? 0.4 : 1 },
         variant === 'ghost' && styles.buttonGhost,
+        variant !== 'ghost' &&
+          !disabled && [styles.buttonGlow, { shadowColor: palette.bg }],
         style,
-      ]}>
-      <Text style={[styles.buttonText, { color: fg }]}>{label}</Text>
-    </Pressable>
+      ]}
+    >
+      <Text style={[styles.buttonText, { color: palette.fg }]}>{label}</Text>
+    </PressableScale>
   );
 }
 
-export function Badge({ label, color }: { label: string; color: string }) {
+export function Badge({
+  label,
+  color,
+  live,
+}: {
+  label: string;
+  color: string;
+  /** Muestra un punto que late antes del texto (estado en vivo). */
+  live?: boolean;
+}) {
   return (
-    <View style={[styles.badge, { borderColor: color, backgroundColor: `${color}1F` }]}>
+    <View
+      style={[
+        styles.badge,
+        { borderColor: color, backgroundColor: `${color}1F` },
+      ]}
+    >
+      {live ? (
+        <Pulse
+          periodMs={1400}
+          minOpacity={0.35}
+          maxScale={1.25}
+          style={styles.badgeDotWrap}
+        >
+          <View style={[styles.badgeDot, { backgroundColor: color }]} />
+        </Pulse>
+      ) : null}
       <Text style={[styles.badgeText, { color }]}>{label}</Text>
     </View>
   );
@@ -115,16 +153,24 @@ export function Metric({
   value,
   unit,
   color = colors.text,
+  icon,
 }: {
   label: string;
   value: string;
   unit?: string;
   color?: string;
+  icon?: ReactNode;
 }) {
   return (
     <Card style={styles.metric}>
-      <Text style={styles.metricLabel}>{label.toUpperCase()}</Text>
-      <Text style={[styles.metricValue, { color }]}>
+      <View style={styles.metricTop}>
+        <Text style={styles.metricLabel}>{label.toUpperCase()}</Text>
+        {icon}
+      </View>
+      <Text
+        style={[styles.metricValue, { color }]}
+        accessibilityLabel={`${label}: ${value} ${unit ?? ''}`}
+      >
         {value}
         {unit ? <Text style={styles.metricUnit}> {unit}</Text> : null}
       </Text>
@@ -139,12 +185,13 @@ export function ConfidenceBar({
   value: number;
   color: string;
 }) {
+  const progress = useAnimatedValue(value, 700);
   return (
     <View style={styles.barTrack}>
-      <View
+      <Animated.View
         style={[
           styles.barFill,
-          { width: `${Math.round(value * 100)}%`, backgroundColor: color },
+          { backgroundColor: color, transform: [{ scaleX: progress }] },
         ]}
       />
     </View>
@@ -168,25 +215,76 @@ export function Row({
   );
 }
 
-export function DemoTag() {
-  return <Badge label="MODO DEMO" color={colors.warning} />;
+export function DemoTag({ label = 'MODO DEMO' }: { label?: string }) {
+  return <Badge label={label} color={colors.warning} />;
 }
 
-/** Traza el ECG escalando al alto disponible; `heat` (0..1 por tramo) pinta el mapa XAI detrás. */
+/** Indica de dónde sale el diagnóstico que se está mostrando. */
+export function SourceTag({ source }: { source: 'modelo' | 'simulacion' }) {
+  return source === 'modelo' ? (
+    <Badge label="MODELO IA" color={colors.accent} />
+  ) : (
+    <DemoTag label="SIMULADO" />
+  );
+}
+
+/** Cuadrícula de papel de ECG: líneas finas cada 5 px de celda y gruesas cada 5 celdas. */
+// memo: la cuadrícula es fija; sin esto se redibujaría con cada paquete de ECG (10 veces/s).
+const EcgGrid = memo(function EcgGrid({ width, height }: { width: number; height: number }) {
+  const lines = useMemo(() => {
+    const cell = 10;
+    const out: {
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      major: boolean;
+    }[] = [];
+    for (let x = 0, i = 0; x <= width; x += cell, i++) {
+      out.push({ x1: x, y1: 0, x2: x, y2: height, major: i % 5 === 0 });
+    }
+    for (let y = 0, i = 0; y <= height; y += cell, i++) {
+      out.push({ x1: 0, y1: y, x2: width, y2: y, major: i % 5 === 0 });
+    }
+    return out;
+  }, [width, height]);
+  return (
+    <>
+      {lines.map((l, i) => (
+        <Line
+          key={i}
+          {...l}
+          stroke={l.major ? '#1B3A2E' : '#10221B'}
+          strokeWidth={l.major ? 1 : 0.5}
+        />
+      ))}
+    </>
+  );
+});
+
+/**
+ * Traza el ECG sobre papel milimetrado. `heat` (0..1 por tramo) pinta el mapa XAI
+ * detrás; `live` agrega el punto brillante al final del trazo, como un monitor.
+ */
 export function EcgChart({
   samples,
   width,
   height,
   color = colors.ecg,
   heat,
+  live,
+  grid = true,
 }: {
   samples: number[];
   width: number;
   height: number;
   color?: string;
   heat?: number[];
+  live?: boolean;
+  grid?: boolean;
 }) {
   let points = '';
+  let last: { x: number; y: number } | null = null;
   if (samples.length > 1) {
     let min = Infinity;
     let max = -Infinity;
@@ -197,16 +295,17 @@ export function EcgChart({
     const span = max - min || 1;
     const stepX = width / (samples.length - 1);
     const pad = height * 0.1;
+    const y = (v: number) =>
+      height - pad - ((v - min) / span) * (height - 2 * pad);
     points = samples
-      .map(
-        (v, i) =>
-          `${(i * stepX).toFixed(1)},${(height - pad - ((v - min) / span) * (height - 2 * pad)).toFixed(1)}`,
-      )
+      .map((v, i) => `${(i * stepX).toFixed(1)},${y(v).toFixed(1)}`)
       .join(' ');
+    last = { x: width, y: y(samples[samples.length - 1]) };
   }
   const cell = heat && heat.length ? width / heat.length : 0;
   return (
     <Svg width={width} height={height}>
+      {grid ? <EcgGrid width={width} height={height} /> : null}
       {heat?.map((h, i) =>
         h > 0.15 ? (
           <Rect
@@ -221,30 +320,89 @@ export function EcgChart({
         ) : null,
       )}
       {points ? (
-        <Polyline points={points} fill="none" stroke={color} strokeWidth={1.6} />
+        <>
+          {/* Halo suave debajo del trazo: da el brillo de fósforo de un monitor */}
+          <Polyline
+            points={points}
+            fill="none"
+            stroke={color}
+            strokeOpacity={0.18}
+            strokeWidth={5}
+          />
+          <Polyline
+            points={points}
+            fill="none"
+            stroke={color}
+            strokeWidth={1.6}
+          />
+        </>
+      ) : null}
+      {live && last ? (
+        <>
+          <Circle
+            cx={last.x - 3}
+            cy={last.y}
+            r={7}
+            fill={color}
+            opacity={0.2}
+          />
+          <Circle cx={last.x - 3} cy={last.y} r={3} fill={color} />
+        </>
       ) : null}
     </Svg>
   );
 }
 
-export function HeartLogo({ size = 56 }: { size?: number }) {
+export function HeartLogo({
+  size = 56,
+  beat = true,
+}: {
+  size?: number;
+  beat?: boolean;
+}) {
   return (
-    <View style={[styles.logo, { width: size + 24, height: size + 24 }]}>
-      <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Pulse active={beat} periodMs={1000} maxScale={1.06}>
+      <View style={[styles.logo, { width: size + 24, height: size + 24 }]}>
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path
+            d="M12 21s-7.5-4.6-9.5-9.2C1 8.4 3.3 4.5 7 4.5c2 0 3.4 1.1 5 3 1.6-1.9 3-3 5-3 3.7 0 6 3.9 4.5 7.3C19.5 16.4 12 21 12 21z"
+            fill="none"
+            stroke={colors.accent}
+            strokeWidth={1.6}
+          />
+          <Polyline
+            points="4,12 8,12 9.5,9 11.5,15 13,11 14,12 20,12"
+            fill="none"
+            stroke={colors.accent}
+            strokeWidth={1.6}
+          />
+        </Svg>
+      </View>
+    </Pulse>
+  );
+}
+
+/** Corazón pequeño que late al ritmo de la frecuencia cardíaca medida. */
+export function HeartBeat({
+  bpm,
+  color = colors.danger,
+}: {
+  bpm: number | null;
+  color?: string;
+}) {
+  return (
+    <Pulse
+      active={bpm !== null}
+      periodMs={bpm ? 60000 / bpm : 1000}
+      maxScale={1.3}
+    >
+      <Svg width={14} height={14} viewBox="0 0 24 24">
         <Path
           d="M12 21s-7.5-4.6-9.5-9.2C1 8.4 3.3 4.5 7 4.5c2 0 3.4 1.1 5 3 1.6-1.9 3-3 5-3 3.7 0 6 3.9 4.5 7.3C19.5 16.4 12 21 12 21z"
-          fill="none"
-          stroke={colors.accent}
-          strokeWidth={1.6}
-        />
-        <Polyline
-          points="4,12 8,12 9.5,9 11.5,15 13,11 14,12 20,12"
-          fill="none"
-          stroke={colors.accent}
-          strokeWidth={1.6}
+          fill={color}
         />
       </Svg>
-    </View>
+    </Pulse>
   );
 }
 
@@ -291,6 +449,12 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonGhost: { borderWidth: 1, borderColor: colors.border },
+  buttonGlow: {
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
   buttonText: { fontSize: 15, fontWeight: '700' },
   badge: {
     borderWidth: 1,
@@ -298,11 +462,36 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  badgeText: { fontSize: 11, fontWeight: '700', fontFamily: mono, letterSpacing: 0.5 },
+  badgeDotWrap: { width: 7, height: 7 },
+  badgeDot: { width: 7, height: 7, borderRadius: 4 },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: mono,
+    letterSpacing: 0.5,
+  },
   metric: { flex: 1, padding: 12 },
-  metricLabel: { color: colors.muted, fontSize: 10, letterSpacing: 0.8, fontFamily: mono },
-  metricValue: { fontSize: 24, fontWeight: '700', fontFamily: mono, marginTop: 4 },
+  metricTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  metricLabel: {
+    color: colors.muted,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    fontFamily: mono,
+  },
+  metricValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    fontFamily: mono,
+    marginTop: 4,
+  },
   metricUnit: { fontSize: 11, color: colors.muted, fontWeight: '400' },
   barTrack: {
     height: 8,
@@ -310,7 +499,12 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.border,
     overflow: 'hidden',
   },
-  barFill: { height: 8, borderRadius: 4 },
+  barFill: {
+    height: 8,
+    borderRadius: 4,
+    width: '100%',
+    transformOrigin: 'left',
+  },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
