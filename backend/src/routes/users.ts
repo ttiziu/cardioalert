@@ -35,7 +35,6 @@ users.post('/', async (req, res) => {
   }
   const { email, password, fullName, role } = parsed.data;
 
-  // El trigger handle_new_user crea la fila de profiles con este rol y nombre.
   const { data, error } = await admin.auth.admin.createUser({
     email,
     password,
@@ -48,6 +47,18 @@ users.post('/', async (req, res) => {
     return res
       .status(duplicated ? 409 : 500)
       .json({ error: duplicated ? 'Ya existe un usuario con ese correo' : error.message });
+  }
+
+  // El rol se escribe aquí y no se deja al trigger handle_new_user: Supabase inserta
+  // la cuenta antes de guardar app_metadata, así que el trigger no ve el rol y deja
+  // el valor por defecto ('paramedico').
+  const { error: profileError } = await admin
+    .from('profiles')
+    .upsert({ id: data.user.id, role, full_name: fullName });
+  if (profileError) {
+    // Sin perfil correcto la cuenta tendría el rol equivocado: se revierte la creación.
+    await admin.auth.admin.deleteUser(data.user.id);
+    return res.status(500).json({ error: `No se pudo asignar el rol: ${profileError.message}` });
   }
 
   res.status(201).json({
