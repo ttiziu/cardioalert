@@ -1,0 +1,27 @@
+# Levanta backend + API de IA en un solo servidor (VPS o equipo local):
+#   cd deploy && docker compose up -d --build
+# Si los puertos 3000/8000 están ocupados: BACKEND_PORT=3100 ML_API_PORT=8100 docker compose up -d
+# Requiere backend/.env (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) y deploy/.env (ML_API_KEY):
+#   cp .env.example .env   y edita la clave.
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../deploy/backend.Dockerfile
+    env_file: ../backend/.env
+    environment:
+      PORT: "3000"
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"   # puerto del host configurable
+    restart: unless-stopped
+
+  ml-api:
+    build:
+      context: ../ml-api
+      dockerfile: ../deploy/ml-api.Dockerfile
+    environment:
+      PORT: "8000"
+      ML_API_KEY: ${ML_API_KEY:?Crea deploy/.env a partir de .env.example}
+    ports:
+      - "${ML_API_PORT:-8000}:8000"
+    restart: unless-stopped
